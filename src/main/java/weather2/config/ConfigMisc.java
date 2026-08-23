@@ -38,7 +38,7 @@ public class ConfigMisc implements IConfigCategory {
 	@ConfigComment("For a second layer of passive non storm progressing cloudOption")
 	public static boolean Cloud_Layer1_Enable = false;
 	public static int Cloud_Layer0_Height = 200 + 64;
-	public static int Cloud_Layer1_Height = 350 + 64;
+	public static int Cloud_Layer1_Height = 256 + 64;
 	@ConfigComment("Not used at the moment")
 	public static int Cloud_Layer2_Height = 500 + 64;
 

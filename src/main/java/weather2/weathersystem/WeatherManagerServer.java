@@ -48,6 +48,60 @@ public class WeatherManagerServer extends WeatherManager {
 		return world;
 	}
 
+	/**
+	 * Counts only StormObject instances assigned to the requested cloud layer.
+	 * The upstream 1.20 source contains commented calls to getStormObjectsByLayer(),
+	 * but that method is not actually implemented in this branch.
+	 */
+	private int getStormObjectCountByLayer(int layer) {
+		int count = 0;
+
+		for (WeatherObject weatherObject : getStormObjects()) {
+			if (weatherObject instanceof StormObject) {
+				StormObject stormObject = (StormObject) weatherObject;
+
+				if (stormObject.layer == layer) {
+					count++;
+				}
+			}
+		}
+
+		return count;
+	}
+
+	/**
+	 * Finds the closest storm object on the requested cloud layer only.
+	 *
+	 * The original Weather2 spacing check uses getClosestStormAny(), which
+	 * compares storms from every layer. With layer 0 at Y=264 and layer 1 at
+	 * Y=320, the 300-block minimum spacing causes lower-layer clouds to block
+	 * upper-layer clouds from spawning. This helper keeps that spacing rule
+	 * independent for each layer.
+	 */
+	private StormObject getClosestStormAnyForLayer(Vec3 pos, double maxDist, int layer) {
+		StormObject closestStorm = null;
+		double closestDist = Double.MAX_VALUE;
+
+		for (WeatherObject weatherObject : getStormObjects()) {
+			if (weatherObject instanceof StormObject) {
+				StormObject stormObject = (StormObject) weatherObject;
+
+				if (stormObject.isDead || stormObject.isFirenado || stormObject.layer != layer) {
+					continue;
+				}
+
+				double dist = stormObject.pos.distanceTo(pos);
+
+				if (dist < closestDist && dist <= maxDist) {
+					closestStorm = stormObject;
+					closestDist = dist;
+				}
+			}
+		}
+
+		return closestStorm;
+	}
+
 	@Override
 	public void tick() {
 		super.tick();
@@ -186,7 +240,7 @@ public class WeatherManagerServer extends WeatherManager {
 						//Weather.dbg("getStormObjects().size(): " + getStormObjects().size());
 
 						//layer 0
-						if (getStormObjects().size() < ConfigStorm.Storm_MaxPerPlayerPerLayer * world.players().size()) {
+						if (getStormObjectCountByLayer(0) < ConfigStorm.Storm_MaxPerPlayerPerLayer * world.players().size()) {
 							if (rand.nextInt(5) == 0) {
 								//if (rand.nextFloat() <= cloudIntensity) {
 								trySpawnStormCloudNearPlayerForLayer(entP, 0);
@@ -195,7 +249,7 @@ public class WeatherManagerServer extends WeatherManager {
 						}
 
 						//layer 1
-						/*if (getStormObjectsByLayer(1).size() < ConfigStorm.Storm_MaxPerPlayerPerLayer * world.players().size()) {
+						if (getStormObjectCountByLayer(1) < ConfigStorm.Storm_MaxPerPlayerPerLayer * world.players().size()) {
 							if (ConfigMisc.Cloud_Layer1_Enable) {
 								if (rand.nextInt(5) == 0) {
 									//if (rand.nextFloat() <= cloudIntensity) {
@@ -203,7 +257,7 @@ public class WeatherManagerServer extends WeatherManager {
 									//}
 								}
 							}
-						}*/
+						}
 					}
 				}
 			}
@@ -566,7 +620,7 @@ public class WeatherManagerServer extends WeatherManager {
 			spawnX = (int) (entP.getX() - vecX + rand.nextInt(ConfigMisc.Misc_simBoxRadiusSpawn) - rand.nextInt(ConfigMisc.Misc_simBoxRadiusSpawn));
 			spawnZ = (int) (entP.getZ() - vecZ + rand.nextInt(ConfigMisc.Misc_simBoxRadiusSpawn) - rand.nextInt(ConfigMisc.Misc_simBoxRadiusSpawn));
 			tryPos = new Vec3(spawnX, StormObject.layers.get(layer), spawnZ);
-			soClose = getClosestStormAny(tryPos, ConfigMisc.Cloud_Formation_MinDistBetweenSpawned);
+			soClose = getClosestStormAnyForLayer(tryPos, ConfigMisc.Cloud_Formation_MinDistBetweenSpawned, layer);
 			playerClose = entP.level().getNearestPlayer(spawnX, 50, spawnZ, closestToPlayer, false);
 		}
 
@@ -586,9 +640,28 @@ public class WeatherManagerServer extends WeatherManager {
 				so.setCloudlessStorm(true);
 			}
 			addStormObject(so);
+
+			if (layer == 1) {
+				Weather.LOGGER.info(
+						"[Weather2 Layer1 TEST] SERVER spawned layer-1 cloud ID={} at x={}, y={}, z={}, cloudless={}",
+						so.ID,
+						so.pos.x,
+						so.pos.y,
+						so.pos.z,
+						so.isCloudlessStorm()
+				);
+			}
+
 			syncStormNew(so);
 		} else {
-			//Weather.dbg("couldnt find space to spawn cloud formation");
+			if (layer == 1) {
+				Weather.LOGGER.info(
+						"[Weather2 Layer1 TEST] SERVER layer-1 spawn blocked by spacing at x={}, y={}, z={}",
+						tryPos.x,
+						tryPos.y,
+						tryPos.z
+				);
+			}
 		}
 	}
 

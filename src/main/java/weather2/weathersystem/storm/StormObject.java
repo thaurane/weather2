@@ -46,6 +46,7 @@ import weather2.util.*;
 import weather2.weathersystem.WeatherManager;
 import weather2.weathersystem.WeatherManagerServer;
 import weather2.weathersystem.tornado.ActiveTornadoConfig;
+import weather2.weathersystem.tornado.TornadoVisualType;
 import weather2.weathersystem.tornado.simple.Layer;
 import weather2.weathersystem.tornado.simple.TornadoFunnelSimple;
 
@@ -171,6 +172,13 @@ public class StormObject extends WeatherObject {
 	
 	public TornadoHelper tornadoHelper = new TornadoHelper(this);
 	private TornadoFunnelSimple tornadoFunnelSimple;
+
+	/*
+	 * Visual-only tornado morphology.
+	 * Chosen once on the server from the storm's maximum Fujita intensity,
+	 * synced to clients, and then kept for the life of the storm.
+	 */
+	private int tornadoVisualType = TornadoVisualType.UNSET.getId();
 	
 	//public Set<ChunkCoordIntPair> doneChunks = new HashSet<ChunkCoordIntPair>();
 	public int updateLCG = (new Random()).nextInt();
@@ -386,6 +394,10 @@ public class StormObject extends WeatherObject {
 		levelStormIntensityMax = parNBT.getInt("levelStormIntensityMax");
 		levelCurStagesIntensity = parNBT.getFloat("levelCurStagesIntensity");
 		stormType = parNBT.getInt("stormType");
+
+		if (parNBT.contains("tornadoVisualType")) {
+			tornadoVisualType = parNBT.getInt("tornadoVisualType");
+		}
 		
 		hasStormPeaked = parNBT.getBoolean("hasStormPeaked");
 		
@@ -466,6 +478,7 @@ public class StormObject extends WeatherObject {
 		data.putFloat("levelCurStagesIntensity", levelCurStagesIntensity);
 		data.putFloat("levelStormIntensityMax", levelStormIntensityMax);
 		data.putInt("stormType", stormType);
+		data.putInt("tornadoVisualType", tornadoVisualType);
 		
 		data.putBoolean("hasStormPeaked", hasStormPeaked);
 		
@@ -627,7 +640,99 @@ public class StormObject extends WeatherObject {
 		}
 	}
 
+	/**
+	 * Selects a visual funnel shape once on the logical server.
+	 *
+	 * The weighting uses the storm's planned maximum Fujita stage, so an
+	 * eventual F4/F5 can look like a wedge from touchdown instead of changing
+	 * shape every time its intensity stage advances.
+	 *
+	 * Weights are intentionally gameplay-oriented starting values:
+	 *
+	 * F0: Rope 55, Cone 35, Stovepipe 10, Wedge 0
+	 * F1: Rope 35, Cone 40, Stovepipe 20, Wedge 5
+	 * F2: Rope 15, Cone 35, Stovepipe 30, Wedge 20
+	 * F3: Rope 5,  Cone 20, Stovepipe 30, Wedge 45
+	 * F4: Rope 0,  Cone 10, Stovepipe 25, Wedge 65
+	 * F5: Rope 0,  Cone 5,  Stovepipe 15, Wedge 80
+	 */
+	private void ensureTornadoVisualType() {
+		if (stormType != TYPE_LAND) {
+			return;
+		}
+
+		if (tornadoVisualType != TornadoVisualType.UNSET.getId()) {
+			return;
+		}
+
+		if (manager == null || manager.getWorld() == null || manager.getWorld().isClientSide()) {
+			return;
+		}
+
+		int maxStage = levelStormIntensityMax;
+
+		if (maxStage < STATE_STAGE1) {
+			maxStage = Math.max(levelCurIntensityStage, STATE_STAGE1);
+		}
+
+		int fujitaRating = Mth.clamp(maxStage - STATE_STAGE1, 0, 5);
+		int roll = manager.getWorld().getRandom().nextInt(100);
+
+		TornadoVisualType selected;
+
+		switch (fujitaRating) {
+			case 0 -> {
+				if (roll < 55) selected = TornadoVisualType.ROPE;
+				else if (roll < 90) selected = TornadoVisualType.CONE;
+				else selected = TornadoVisualType.STOVEPIPE;
+			}
+			case 1 -> {
+				if (roll < 35) selected = TornadoVisualType.ROPE;
+				else if (roll < 75) selected = TornadoVisualType.CONE;
+				else if (roll < 95) selected = TornadoVisualType.STOVEPIPE;
+				else selected = TornadoVisualType.WEDGE;
+			}
+			case 2 -> {
+				if (roll < 15) selected = TornadoVisualType.ROPE;
+				else if (roll < 50) selected = TornadoVisualType.CONE;
+				else if (roll < 80) selected = TornadoVisualType.STOVEPIPE;
+				else selected = TornadoVisualType.WEDGE;
+			}
+			case 3 -> {
+				if (roll < 5) selected = TornadoVisualType.ROPE;
+				else if (roll < 25) selected = TornadoVisualType.CONE;
+				else if (roll < 55) selected = TornadoVisualType.STOVEPIPE;
+				else selected = TornadoVisualType.WEDGE;
+			}
+			case 4 -> {
+				if (roll < 10) selected = TornadoVisualType.CONE;
+				else if (roll < 35) selected = TornadoVisualType.STOVEPIPE;
+				else selected = TornadoVisualType.WEDGE;
+			}
+			default -> {
+				if (roll < 5) selected = TornadoVisualType.CONE;
+				else if (roll < 20) selected = TornadoVisualType.STOVEPIPE;
+				else selected = TornadoVisualType.WEDGE;
+			}
+		}
+
+		tornadoVisualType = selected.getId();
+
+		// Force the tornado configuration/morphology to be included in the next sync.
+		configNeedsSync = true;
+	}
+
+	public TornadoVisualType getTornadoVisualType() {
+		if (stormType != TYPE_LAND) {
+			return TornadoVisualType.CONE;
+		}
+
+		return TornadoVisualType.fromId(tornadoVisualType);
+	}
+
 	public void setupTornado() {
+		ensureTornadoVisualType();
+
 		ActiveTornadoConfig activeTornadoConfig;
 		if (isPet()) {
 			activeTornadoConfig = new ActiveTornadoConfig()
@@ -1264,6 +1369,17 @@ public class StormObject extends WeatherObject {
 
 			}
 			
+			// Enforce cloud-layer roles:
+			// layer 0 may progress into thunderstorms, high wind, hail, tornadoes/cyclones;
+			// layer 1+ are passive cloud/rain layers only.
+			if (layer != 0) {
+				canBeDeadly = false;
+
+				if (levelCurIntensityStage != STATE_NORMAL) {
+					setNoStorm();
+				}
+			}
+
 			//actual storm formation chance
 
 			boolean tempAlwaysFormStorm = false;
@@ -1852,7 +1968,7 @@ public class StormObject extends WeatherObject {
 					//Weather.dbg("listParticlesCloud.size(): " + listParticlesCloud.size());
 					
 					//Vec3 tryPos = new Vec3(pos.x + (rand.nextDouble()*spawnRad) - (rand.nextDouble()*spawnRad), layers.get(layer), pos.z + (rand.nextDouble()*spawnRad) - (rand.nextDouble()*spawnRad));
-					Vec3 tryPos = new Vec3(pos.x + (rand.nextDouble()*spawnRad) - (rand.nextDouble()*spawnRad), getPosTop().y + 30, pos.z + (rand.nextDouble()*spawnRad) - (rand.nextDouble()*spawnRad));
+					Vec3 tryPos = new Vec3(pos.x + (rand.nextDouble()*spawnRad) - (rand.nextDouble()*spawnRad), layers.get(layer), pos.z + (rand.nextDouble()*spawnRad) - (rand.nextDouble()*spawnRad));
 					if (tryPos.distanceTo(playerAdjPos) < maxSpawnDistFromPlayer) {
 						if (getAvoidAngleIfTerrainAtOrAheadOfPosition(getAdjustedAngle(), tryPos) == 0) {
 							EntityRotFX particle;
@@ -2894,9 +3010,9 @@ public class StormObject extends WeatherObject {
 			baseBright -= adj;
 		}
 		
-		/*if (layer == 1) {
+		if (layer == 1) {
 			baseBright = 0.1F;
-		}*/
+		}
 		
 		float finalBright = Math.min(1F, baseBright+randFloat);
 

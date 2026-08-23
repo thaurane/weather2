@@ -18,6 +18,7 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import weather2.Weather;
 import weather2.weathersystem.storm.StormObject;
 import weather2.weathersystem.tornado.ActiveTornadoConfig;
+import weather2.weathersystem.tornado.TornadoVisualType;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -41,6 +42,11 @@ public class TornadoFunnelSimple {
 
     //hack to fix client data coming in late
     private boolean wasFirenado = false;
+
+    // Cached once per tornado. This avoids doing trigonometry for every particle.
+    private boolean ropeDirectionInitialized = false;
+    private double ropeDirectionX = 1D;
+    private double ropeDirectionZ = 0D;
 
     public TornadoFunnelSimple(ActiveTornadoConfig config, StormObject stormObject) {
         this.config = config;
@@ -198,7 +204,13 @@ public class TornadoFunnelSimple {
             List<PivotingParticle> listLayerExtra = listLayers.get(i).getListParticlesExtra();
 
             float radius = config.getRadiusOfBase() + (config.getRadiusIncreasePerLayer() * (i));
-            float radiusAdjustedForParticleSize = radius * (radius / radiusMax);
+            float defaultRadiusAdjustedForParticleSize = radius * (radius / radiusMax);
+            float radiusAdjustedForParticleSize = getVisualPivotRadius(
+                    i,
+                    layers,
+                    defaultRadiusAdjustedForParticleSize,
+                    radiusMax
+            );
 
             float circumference = radius * 2 * Mth.PI;
             //float particleSpaceOccupy = 0.5F * (radius / radiusMax);
@@ -270,7 +282,7 @@ public class TornadoFunnelSimple {
                     particle.prevRotationYaw -= 360;
                 }*/
 
-                Vec3 posLayer = listLayers.get(i).getPos();
+                Vec3 posLayer = getVisualLayerPosition(listLayers.get(i).getPos(), i, layers);
                 particle.setPosition(posLayer.x, posLayer.y, posLayer.z);
                 particle.setPrevPosX(particle.x);
                 particle.setPrevPosY(particle.y);
@@ -338,7 +350,13 @@ public class TornadoFunnelSimple {
                 radAdj = 0.4F + (radAdj * 0.6F);
                 float moar = i * 0.5F;
                 if (isPet) moar = 0.5F;
-                radiusAdjustedForParticleSize = (radius * (radius / radiusMax) + moar) * radAdj;
+                float visualBaseRadius = getVisualPivotRadius(
+                        i,
+                        layers,
+                        radius * (radius / radiusMax),
+                        radiusMax
+                );
+                radiusAdjustedForParticleSize = (visualBaseRadius + moar) * radAdj;
 
                 float rot = (particleSpacingDegrees * index) + listLayers.get(i).getRotation();
                 particle.setPivotRotPrev(particle.getPivotRot());
@@ -350,7 +368,7 @@ public class TornadoFunnelSimple {
                 particle.rotationYaw += 5F;
                 particle.rotationPitch = -30;
 
-                Vec3 posLayer = listLayers.get(i).getPos();
+                Vec3 posLayer = getVisualLayerPosition(listLayers.get(i).getPos(), i, layers);
                 particle.setPosition(posLayer.x, posLayer.y, posLayer.z);
                 particle.setPrevPosX(particle.x);
                 particle.setPrevPosY(particle.y);
@@ -374,6 +392,117 @@ public class TornadoFunnelSimple {
         //CULog.dbg(particleCount + "");
 
         wasFirenado = stormObject.isFirenado;
+    }
+
+    /**
+     * Returns the rendered orbit radius for each vertical slice.
+     *
+     * Particle counts are intentionally still calculated from Weather2's
+     * original funnel radius. That means wedge tornadoes become visually wider
+     * without multiplying the number of particles and increasing processing cost.
+     */
+    private float getVisualPivotRadius(int layerIndex,
+                                       int layerCount,
+                                       float defaultRadius,
+                                       float radiusMax)
+    {
+        if (stormObject.stormType != StormObject.TYPE_LAND)
+            return defaultRadius;
+
+        TornadoVisualType type = stormObject.getTornadoVisualType();
+
+        float progress = layerCount <= 1
+                ? 0F
+                : (float) layerIndex / (float) (layerCount - 1);
+
+        return switch (type)
+        {
+            case ROPE -> Math.max(2.5F, radiusMax * (0.06F + (0.10F * progress)));
+            case STOVEPIPE -> radiusMax * (0.38F + (0.05F * progress));
+            case WEDGE -> radiusMax * (0.90F + (0.65F * progress));
+            case CONE, UNSET -> defaultRadius;
+        };
+    }
+
+    /**
+     * Rope tornadoes use the same single vortex simulation as every other
+     * tornado. Only the visual centerline bends.
+     *
+     * From cloud base downward the shape is approximately:
+     *
+     *   | |
+     *     \
+     *       \
+     *        ----
+     *            |
+     *
+     * The strong sideways change is concentrated into a short vertical section,
+     * producing the almost-horizontal middle section without adding another
+     * simulated vortex.
+     */
+    private Vec3 getVisualLayerPosition(Vec3 originalPos, int layerIndex, int layerCount)
+    {
+        if (stormObject.stormType != StormObject.TYPE_LAND
+                || stormObject.getTornadoVisualType() != TornadoVisualType.ROPE)
+        {
+            return originalPos;
+        }
+
+        if (!ropeDirectionInitialized)
+        {
+            // Golden-angle style distribution gives each tornado a stable,
+            // deterministic bend direction without extra network data.
+            double angleDegrees = Math.floorMod(stormObject.ID * 137L, 360L);
+            double angleRadians = Math.toRadians(angleDegrees);
+
+            ropeDirectionX = Math.cos(angleRadians);
+            ropeDirectionZ = Math.sin(angleRadians);
+            ropeDirectionInitialized = true;
+        }
+
+        // 0 = ground/bottom, 1 = cloud/top.
+        double progress = layerCount <= 1
+                ? 0D
+                : (double) layerIndex / (double) (layerCount - 1);
+
+        double maxOffset = 18D + Math.floorMod(stormObject.ID, 7L);
+        double offset;
+
+        if (progress >= 0.84D)
+        {
+            // Keep only a short vertical section beneath the cloud base.
+            offset = 0D;
+        }
+        else if (progress >= 0.50D)
+        {
+            // Begin the main diagonal much higher in the funnel.
+            double local = (0.84D - progress) / 0.34D;
+            offset = smoothStep(local) * (maxOffset * 0.48D);
+        }
+        else if (progress >= 0.34D)
+        {
+            // Stronger sideways run over a short amount of height.
+            double local = (0.50D - progress) / 0.16D;
+            offset = (maxOffset * 0.48D)
+                    + smoothStep(local) * (maxOffset * 0.52D);
+        }
+        else
+        {
+            // Lower tip becomes vertical again after the bend.
+            offset = maxOffset;
+        }
+
+        return originalPos.add(
+                ropeDirectionX * offset,
+                0D,
+                ropeDirectionZ * offset
+        );
+    }
+
+    private double smoothStep(double value)
+    {
+        double clamped = Mth.clamp(value, 0D, 1D);
+        return clamped * clamped * (3D - (2D * clamped));
     }
 
     public void cleanupList(List<PivotingParticle> list, int particlesPerLayer) {
