@@ -58,10 +58,34 @@ public class TornadoFunnelSimple {
         listLayers.clear();
     }
 
+    /**
+     * Keeps normal tornado funnels visually attached to the storm cloud when
+     * their ground contact point moves across large elevation changes.
+     *
+     * Weather2 originally used a fixed 150 block funnel height. That happens
+     * to work well around higher terrain, but a tornado descending toward sea
+     * level can end dozens of blocks below the cloud base. We preserve 150 as
+     * the minimum and extend the funnel only when the cloud-to-ground distance
+     * requires it.
+     */
+    private void updateDynamicFunnelHeight() {
+        if (stormObject.isPet() || stormObject.isBaby()) {
+            return;
+        }
+
+        double cloudY = stormObject.pos.y;
+        double baseY = pos.y;
+        float targetHeight = (float)Math.max(150D, cloudY - baseY);
+
+        config.setHeight(targetHeight);
+    }
+
     public void tick() {
         if (stormObject.isPet()) {
             heightPerLayer = 0.2F;
         }
+
+        updateDynamicFunnelHeight();
 
         //TESTING
         //config.setEntityPullDistXZForY(90);
@@ -155,6 +179,8 @@ public class TornadoFunnelSimple {
     @OnlyIn(Dist.CLIENT)
     public void tickClient() {
         long gameTime = stormObject.getAge();
+
+        updateDynamicFunnelHeight();
 
         Level level = stormObject.manager.getWorld();
 
