@@ -17,36 +17,38 @@ public class ConfigStorm implements IConfigCategory {
 	public static int Storm_Deadly_CollideDistance = 128;
 	public static int Storm_LightningStrikeBaseValueOddsTo1 = 200;
 	public static boolean Storm_NoRainVisual = false;
-	public static int Storm_MaxRadius = 300;
+	@ConfigComment("Visual rain render radius in chunks. 8-12 is recommended. Values are clamped to 2-16 by the client renderer.")
+	public static int Storm_Rain_RenderDistance_Chunks = 8;
+	public static int Storm_MaxRadius = 500;
 	public static int Storm_AllTypes_TickRateDelay = 60;
 	public static int Storm_Rain_WaterBuildUpRate = 10;
-	public static int Storm_Rain_WaterSpendRate = 3;
+	public static int Storm_Rain_WaterSpendRate = 1;
 	public static int Storm_Rain_WaterBuildUpOddsTo1FromSource = 15;
 	public static int Storm_Rain_WaterBuildUpOddsTo1FromNothing = 100;
 	public static int Storm_Rain_WaterBuildUpOddsTo1FromOvercastRaining = 30;
 	//public static int Storm_Rain_WaterBuildUp = 150;
 	public static double Storm_TemperatureAdjustRate = 0.1D;
 	//public static double Storm_Deadly_MinIntensity = 5.3D;
-	public static int Storm_HailPerTick = 10;
+	public static int Storm_HailPerTick = 20;
 	public static int Storm_OddsTo1OfOceanBasedStorm = 300;
 	//public static int Storm_OddsTo1OfLandBasedStorm = -1;
 	//public static int Storm_OddsTo1OfProgressionBase = 15;
 	//public static int Storm_OddsTo1OfProgressionStageMultiplier = 3;
-	public static int Storm_PercentChanceOf_HighWind = 90;
-	public static int Storm_PercentChanceOf_Hail = 80;
-	public static int Storm_PercentChanceOf_F0_Tornado = 70;
-	public static int Storm_PercentChanceOf_C0_Cyclone = 70;
-	public static int Storm_PercentChanceOf_F1_Tornado = 50;
-	public static int Storm_PercentChanceOf_C1_Cyclone = 50;
-	public static int Storm_PercentChanceOf_F2_Tornado = 40;
-	public static int Storm_PercentChanceOf_C2_Cyclone = 40;
-	public static int Storm_PercentChanceOf_F3_Tornado = 30;
-	public static int Storm_PercentChanceOf_C3_Cyclone = 30;
-	public static int Storm_PercentChanceOf_F4_Tornado = 20;
-	public static int Storm_PercentChanceOf_C4_Cyclone = 20;
-	public static int Storm_PercentChanceOf_F5_Tornado = 10;
+	public static int Storm_PercentChanceOf_HighWind = 60;
+	public static int Storm_PercentChanceOf_Hail = 40;
+	public static int Storm_PercentChanceOf_F0_Tornado = 10;
+	public static int Storm_PercentChanceOf_C0_Cyclone = 10;
+	public static int Storm_PercentChanceOf_F1_Tornado = 6;
+	public static int Storm_PercentChanceOf_C1_Cyclone = 6;
+	public static int Storm_PercentChanceOf_F2_Tornado = 4;
+	public static int Storm_PercentChanceOf_C2_Cyclone = 4;
+	public static int Storm_PercentChanceOf_F3_Tornado = 3;
+	public static int Storm_PercentChanceOf_C3_Cyclone = 3;
+	public static int Storm_PercentChanceOf_F4_Tornado = 1;
+	public static int Storm_PercentChanceOf_C4_Cyclone = 1;
+	public static int Storm_PercentChanceOf_F5_Tornado = 1;
 	@ConfigComment("Also known as full blown hurricane")
-	public static int Storm_PercentChanceOf_C5_Cyclone = 10;
+	public static int Storm_PercentChanceOf_C5_Cyclone = 1;
 	public static int Storm_ParticleSpawnDelay = 3;
 	
 	//per player storm settings
@@ -69,7 +71,7 @@ public class ConfigStorm implements IConfigCategory {
 	@ConfigComment("Used if Server_Storm_Deadly_UseGlobalRate is on, for areas without the right mix of hot and cold biomes")
 	public static int Server_Storm_Deadly_TimeBetweenInTicks_Land_Based = 20*60*20*10; //10 mc days
 
-	public static boolean preventServerThunderstorms = true;
+	public static boolean preventServerThunderstorms = false;
 	//lightning
 	public static int Lightning_OddsTo1OfFire = 20;
 	public static int Lightning_lifetimeOfFire = 3;

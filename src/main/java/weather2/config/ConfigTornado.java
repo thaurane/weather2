@@ -19,17 +19,17 @@ public class ConfigTornado implements IConfigCategory {
 	public static boolean Storm_NoTornadosOrCyclones = false;
 	//tornado
 	@ConfigComment("Grab player or not")
-	public static boolean Storm_Tornado_grabPlayer = true;
+	public static boolean Storm_Tornado_grabPlayer = false;
 	@ConfigComment("Prevent grabbing of non players")
-	public static boolean Storm_Tornado_grabPlayersOnly = false;
+	public static boolean Storm_Tornado_grabPlayersOnly = true;
 	@ConfigComment("Grab hostile mobs, overridden by Storm_Tornado_grabPlayersOnly")
-	public static boolean Storm_Tornado_grabMobs = true;
+	public static boolean Storm_Tornado_grabMobs = false;
 	@ConfigComment("Grab animals, overridden by Storm_Tornado_grabPlayersOnly")
-	public static boolean Storm_Tornado_grabAnimals = true;
+	public static boolean Storm_Tornado_grabAnimals = false;
 	@ConfigComment("Grab villagers, overridden by Storm_Tornado_grabPlayersOnly")
-	public static boolean Storm_Tornado_grabVillagers = true;
+	public static boolean Storm_Tornado_grabVillagers = false;
 	@ConfigComment("Tear up blocks from the ground based on conditions defined")
-	public static boolean Storm_Tornado_grabBlocks = true;
+	public static boolean Storm_Tornado_grabBlocks = false;
 	@ConfigComment("Grab entity items, overridden by Storm_Tornado_grabPlayersOnly")
 	public static boolean Storm_Tornado_grabItems = false;
 	@ConfigComment("Grab blocks based on how well a diamond axe can mine the block, so mostly wooden blocks")
@@ -40,7 +40,7 @@ public class ConfigTornado implements IConfigCategory {
 	//public static boolean Storm_Tornado_GrabCond_List_PartialMatches = false;
 	//public static boolean Storm_Tornado_GrabCond_List_TrimSpaces = true;
 	@ConfigComment("Treat block grab list as a blacklist instead of whitelist")
-	public static boolean Storm_Tornado_GrabListBlacklistMode = false;
+	public static boolean Storm_Tornado_GrabListBlacklistMode = true;
 	@ConfigComment("Enable Storm_Tornado_GrabCond_List to use, add registered block names or block tags to list, for tags, indicate with #, use commas to separate values, if namespace missing, 'minecraft:' is automatically used")
 	public static String Storm_Tornado_GrabList = "#fences, #minecraft:fence_gates, #wooden_doors, #wooden_stairs, #wooden_slabs, #flowers, #planks, #wool, #wooden_trapdoors, #wooden_pressure_plates, #cave_vines, #saplings, #banners, #leaves, #small_flowers, #beds, #tall_flowers, #flowers, #candles, #wall_signs, #signs, #fire, #campfires, #replaceable_plants, #wall_post_override";
 	@ConfigComment("Max amount of flying entity blocks allowed active, if it goes over this, it stops turning destroyed blocks into entities")

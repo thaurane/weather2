@@ -36,7 +36,7 @@ public class ConfigMisc implements IConfigCategory {
 	@ConfigComment("Distance between cloud formations, not particles, this includes invisible cloudless formations used during partial cloud coverage")
 	public static int Cloud_Formation_MinDistBetweenSpawned = 300;
 	@ConfigComment("For a second layer of passive non storm progressing cloudOption")
-	public static boolean Cloud_Layer1_Enable = false;
+	public static boolean Cloud_Layer1_Enable = true;
 	public static int Cloud_Layer0_Height = 200 + 64;
 	public static int Cloud_Layer1_Height = 256 + 64;
 	@ConfigComment("Not used at the moment")
@@ -46,10 +46,10 @@ public class ConfigMisc implements IConfigCategory {
 	public static double Cloud_Coverage_Random_Change_Amount = 0.05D;
 
 	@ConfigComment("Minimum percent of cloud coverage, supports negative for extended cloudless sky coverage")
-	public static double Cloud_Coverage_Min_Percent = 0D;
+	public static double Cloud_Coverage_Min_Percent = 30D;
 
 	@ConfigComment("Maximum percent of cloud coverage, supports over 100% for extended full cloud sky coverage")
-	public static double Cloud_Coverage_Max_Percent = 100D;
+	public static double Cloud_Coverage_Max_Percent = 95D;
 	
 	/*public static int Thread_Particle_Process_Delay = 400;
 	//sound
