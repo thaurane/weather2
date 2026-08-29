@@ -553,6 +553,7 @@ public class TornadoFunnelSimple {
             sprite = ParticleRegistry.cloud256_fire;
         }
         PivotingParticle particle = new PivotingParticle(world, x, y, z, 0, 0, 0, sprite);
+        particle.setWeatherLayer(stormObject.layer);
         particle.setMaxAge(300);
         particle.setTicksFadeInMax(80);
         //particle.setTicksFadeOutMax(20);
@@ -588,6 +589,7 @@ public class TornadoFunnelSimple {
             sprite = ParticleRegistry.debris_3;
         }
         PivotingParticle particle = new PivotingParticle(world, x, y, z, 0, 0, 0, sprite);
+        particle.setWeatherLayer(stormObject.layer);
         particle.setMaxAge(25000);
         particle.setTicksFadeInMax(80);
         particle.setParticleSpeed(0, 0, 0);

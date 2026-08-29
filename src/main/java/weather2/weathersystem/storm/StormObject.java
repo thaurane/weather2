@@ -3039,6 +3039,10 @@ public class StormObject extends WeatherObject {
 
 		entityfx.setUseDynamicWindSpeed(false);
 
+		// Route this storm's particles into the independent particle pool for
+		// its cloud-system layer before the particle is submitted to the engine.
+		entityfx.setWeatherLayer(layer);
+
 		if (ConfigParticle.Particle_effect_rate != 0) {
 			entityfx.spawnAsWeatherEffect();
 			//Minecraft.getInstance().particleEngine.add(entityfx);

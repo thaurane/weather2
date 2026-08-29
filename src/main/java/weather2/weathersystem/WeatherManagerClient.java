@@ -96,6 +96,16 @@ public class WeatherManagerClient extends WeatherManager {
 			wo.nbtSyncFromServer();
 			wo.getNbtCache().updateCacheFromNew();
 
+			if (wo instanceof StormObject stormObject && stormObject.layer == 1) {
+				Weather.LOGGER.info(
+						"[Weather2 Layer1 TEST] CLIENT received layer-1 cloud ID={} at x={}, y={}, z={}",
+						stormObject.ID,
+						stormObject.pos.x,
+						stormObject.pos.y,
+						stormObject.pos.z
+				);
+			}
+
 			addStormObject(wo);
 
 		} else if (command.equals("syncStormRemove")) {

@@ -58,6 +58,52 @@ public class EntityRotFX extends TextureSheetParticle implements IWindHandler
             return "PARTICLE_SHEET_SORTED_TRANSLUCENT";
         }
     };
+    /**
+     * Separate render buckets for Weather2 cloud layers.
+     *
+     * ParticleManagerExtended maintains a separate particle queue for every
+     * ParticleRenderType. Layer 0 and layer 1 previously shared
+     * SORTED_TRANSLUCENT, so a busy upper cloud deck could evict particles
+     * needed by severe storms and tornadoes in layer 0.
+     */
+    public static final ParticleRenderType SORTED_TRANSLUCENT_LAYER_0 = new ParticleRenderType() {
+
+        @Override
+        public void begin(BufferBuilder buffer, TextureManager textureManager) {
+            RenderSystem.disableCull();
+            ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT.begin(buffer, textureManager);
+        }
+
+        @Override
+        public void end(Tesselator tesselator) {
+            ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT.end(tesselator);
+        }
+
+        @Override
+        public String toString() {
+            return "PARTICLE_SHEET_SORTED_TRANSLUCENT_WEATHER_LAYER_0";
+        }
+    };
+
+    public static final ParticleRenderType SORTED_TRANSLUCENT_LAYER_1 = new ParticleRenderType() {
+
+        @Override
+        public void begin(BufferBuilder buffer, TextureManager textureManager) {
+            RenderSystem.disableCull();
+            ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT.begin(buffer, textureManager);
+        }
+
+        @Override
+        public void end(Tesselator tesselator) {
+            ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT.end(tesselator);
+        }
+
+        @Override
+        public String toString() {
+            return "PARTICLE_SHEET_SORTED_TRANSLUCENT_WEATHER_LAYER_1";
+        }
+    };
+
     public static final ParticleRenderType SORTED_OPAQUE_BLOCK = new ParticleRenderType() {
 
         @Override
@@ -82,6 +128,14 @@ public class EntityRotFX extends TextureSheetParticle implements IWindHandler
         }
     };
     public boolean weatherEffect = false;
+
+    /**
+     * Weather2 cloud-system layer this particle belongs to.
+     * -1 = not assigned / legacy shared pool
+     *  0 = lower severe-weather cloud layer
+     *  1 = upper passive cloud layer
+     */
+    private int weatherLayer = -1;
 
     public float spawnY = -1;
 
@@ -875,7 +929,21 @@ public class EntityRotFX extends TextureSheetParticle implements IWindHandler
 
     @Override
     public ParticleRenderType getRenderType() {
+        if (weatherLayer == 0) {
+            return SORTED_TRANSLUCENT_LAYER_0;
+        }
+        if (weatherLayer == 1) {
+            return SORTED_TRANSLUCENT_LAYER_1;
+        }
         return SORTED_TRANSLUCENT;
+    }
+
+    public int getWeatherLayer() {
+        return weatherLayer;
+    }
+
+    public void setWeatherLayer(int weatherLayer) {
+        this.weatherLayer = weatherLayer;
     }
 
     @Override
