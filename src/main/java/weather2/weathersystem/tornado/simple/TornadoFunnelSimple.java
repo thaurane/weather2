@@ -48,15 +48,13 @@ public class TornadoFunnelSimple {
     private double ropeDirectionX = 1D;
     private double ropeDirectionZ = 0D;
 
-    /**
-     * Previous tornado ground/base position used to propagate the parent
-     * storm's horizontal movement through the entire funnel immediately.
-     *
-     * Without this, only layer 0 follows the new base position directly and
-     * every higher layer has to chase the layer below it. A tall, dynamically
-     * extended funnel can therefore lag behind the moving wall cloud.
-     */
-    private Vec3 previousFunnelBasePos = null;
+    // Rendering-only smoothed base height. Terrain sampling changes in whole
+    // block steps; using the raw value to stretch the entire funnel makes each
+    // step visible as a vertical pop. Keep simulation/physics untouched and
+    // let only the visual height anchor glide toward the new terrain height.
+    private double smoothedVisualBaseY = Double.NaN;
+    private static final double VISUAL_BASE_Y_MAX_STEP_PER_TICK = 0.20D;
+
 
     public TornadoFunnelSimple(ActiveTornadoConfig config, StormObject stormObject) {
         this.config = config;
@@ -66,72 +64,13 @@ public class TornadoFunnelSimple {
 
     public void init() {
         listLayers.clear();
-        previousFunnelBasePos = null;
-    }
-
-    /**
-     * Keeps normal tornado funnels visually attached to the storm cloud when
-     * their ground contact point moves across large elevation changes.
-     *
-     * Weather2 originally used a fixed 150 block funnel height. That happens
-     * to work well around higher terrain, but a tornado descending toward sea
-     * level can end dozens of blocks below the cloud base. We preserve 150 as
-     * the minimum and extend the funnel only when the cloud-to-ground distance
-     * requires it.
-     */
-    /**
-     * Apply the storm/base X/Z displacement to every existing funnel layer
-     * before the normal per-layer follow simulation runs.
-     *
-     * This keeps the tornado horizontally anchored beneath the moving storm
-     * and wall cloud while preserving Weather2's existing vertical follow
-     * behavior, terrain response, morphology bends, and dynamic height.
-     */
-    private void propagateHorizontalStormMovement() {
-        if (previousFunnelBasePos == null) {
-            previousFunnelBasePos = new Vec3(pos.x, pos.y, pos.z);
-            return;
-        }
-
-        double deltaX = pos.x - previousFunnelBasePos.x;
-        double deltaZ = pos.z - previousFunnelBasePos.z;
-
-        if ((deltaX != 0D || deltaZ != 0D) && !listLayers.isEmpty()) {
-            for (Layer layer : listLayers) {
-                Vec3 layerPos = layer.getPos();
-                layer.setPos(new Vec3(
-                        layerPos.x + deltaX,
-                        layerPos.y,
-                        layerPos.z + deltaZ
-                ));
-            }
-        }
-
-        // Intentionally track Y without translating existing layers vertically.
-        // Terrain-height changes remain handled by the original layer-follow
-        // simulation and the dynamic funnel-height logic.
-        previousFunnelBasePos = new Vec3(pos.x, pos.y, pos.z);
-    }
-
-    private void updateDynamicFunnelHeight() {
-        if (stormObject.isPet() || stormObject.isBaby()) {
-            return;
-        }
-
-        double cloudY = stormObject.pos.y;
-        double baseY = pos.y;
-        float targetHeight = (float)Math.max(150D, cloudY - baseY);
-
-        config.setHeight(targetHeight);
+        smoothedVisualBaseY = Double.NaN;
     }
 
     public void tick() {
         if (stormObject.isPet()) {
             heightPerLayer = 0.2F;
         }
-
-        propagateHorizontalStormMovement();
-        updateDynamicFunnelHeight();
 
         //TESTING
         //config.setEntityPullDistXZForY(90);
@@ -226,11 +165,11 @@ public class TornadoFunnelSimple {
     public void tickClient() {
         long gameTime = stormObject.getAge();
 
-        updateDynamicFunnelHeight();
-
         Level level = stormObject.manager.getWorld();
 
         renderDistCutoff = Minecraft.getInstance().gameRenderer.getRenderDistance() * 4;
+
+        updateSmoothedVisualBaseY();
 
         int layers = (int) (config.getHeight() / heightPerLayer);
         float radiusMax = config.getRadiusOfBase() + (config.getRadiusIncreasePerLayer() * (layers+1));
@@ -514,10 +453,16 @@ public class TornadoFunnelSimple {
      */
     private Vec3 getVisualLayerPosition(Vec3 originalPos, int layerIndex, int layerCount)
     {
+        // Keep Weather2's original fixed-height simulation untouched and extend
+        // only the rendered funnel vertically when the cloud base is farther
+        // above the ground. This avoids adding extra follower layers, which was
+        // the source of the visible motion instability in tall funnels.
+        Vec3 visualPos = applyVisualHeightStretch(originalPos, layerCount);
+
         if (stormObject.stormType != StormObject.TYPE_LAND
                 || stormObject.getTornadoVisualType() != TornadoVisualType.ROPE)
         {
-            return originalPos;
+            return visualPos;
         }
 
         if (!ropeDirectionInitialized)
@@ -564,11 +509,90 @@ public class TornadoFunnelSimple {
             offset = maxOffset;
         }
 
-        return originalPos.add(
+        return visualPos.add(
                 ropeDirectionX * offset,
                 0D,
                 ropeDirectionZ * offset
         );
+    }
+
+    /**
+     * Vertically stretches only the rendered funnel so that the original
+     * 150-layer simulation can remain unchanged. The baseline simulated height
+     * is calculated from Weather2's own per-layer spacing formula, so a scale of
+     * 1.0 reproduces the original funnel exactly.
+     */
+    private Vec3 applyVisualHeightStretch(Vec3 originalPos, int layerCount)
+    {
+        if (stormObject.isPet() || stormObject.isBaby() || layerCount <= 1)
+        {
+            return originalPos;
+        }
+
+        double visualBaseY = Double.isNaN(smoothedVisualBaseY) ? pos.y : smoothedVisualBaseY;
+        double cloudToGround = stormObject.pos.y - visualBaseY;
+        if (cloudToGround <= 0D)
+        {
+            return originalPos;
+        }
+
+        float radiusMax = config.getRadiusOfBase()
+                + (config.getRadiusIncreasePerLayer() * (layerCount + 1));
+
+        double baselineHeight = 0D;
+        for (int i = 0; i < layerCount; i++)
+        {
+            float radius = config.getRadiusOfBase()
+                    + (config.getRadiusIncreasePerLayer() * i);
+            baselineHeight += heightPerLayer * (radius / radiusMax);
+        }
+
+        if (baselineHeight <= 0.001D || cloudToGround <= baselineHeight)
+        {
+            return originalPos;
+        }
+
+        double scale = cloudToGround / baselineHeight;
+        double relativeY = originalPos.y - visualBaseY;
+
+        return new Vec3(
+                originalPos.x,
+                visualBaseY + (relativeY * scale),
+                originalPos.z
+        );
+    }
+
+    /**
+     * Move the rendering-only terrain anchor toward the current funnel base a
+     * small amount each client tick. A normal one-block terrain step therefore
+     * takes several ticks instead of rescaling the whole funnel instantly.
+     */
+    @OnlyIn(Dist.CLIENT)
+    private void updateSmoothedVisualBaseY()
+    {
+        double targetY = pos.y;
+
+        if (Double.isNaN(smoothedVisualBaseY)
+                || Math.abs(targetY - smoothedVisualBaseY) > 32D)
+        {
+            // Initialize immediately, and do not slowly animate teleports or
+            // other large discontinuities.
+            smoothedVisualBaseY = targetY;
+            return;
+        }
+
+        double delta = targetY - smoothedVisualBaseY;
+        if (Math.abs(delta) <= VISUAL_BASE_Y_MAX_STEP_PER_TICK)
+        {
+            smoothedVisualBaseY = targetY;
+        }
+        else
+        {
+            smoothedVisualBaseY += Math.copySign(
+                    VISUAL_BASE_Y_MAX_STEP_PER_TICK,
+                    delta
+            );
+        }
     }
 
     private double smoothStep(double value)
@@ -676,7 +700,6 @@ public class TornadoFunnelSimple {
 
     public void cleanup() {
         listLayers.clear();
-        previousFunnelBasePos = null;
     }
 
     /**
