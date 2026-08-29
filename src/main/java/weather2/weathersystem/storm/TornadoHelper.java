@@ -71,7 +71,16 @@ public class TornadoHelper {
      * - entity creation relocated to queue processing to initially prevent entity spam, but with entry lookup, not needed, other issues like collision are now the reason why we still relocated entity creation to queue process
      */
     private HashMap<BlockPos, BlockUpdateSnapshot> listBlockUpdateQueue = new HashMap<BlockPos, BlockUpdateSnapshot>();
-    private int queueProcessRate = 40;
+
+    /*
+     * Process queued tornado block changes every tick instead of batching them
+     * into a large burst every 40 ticks (~2 seconds). On an integrated server,
+     * the old burst could briefly stall the game thread and make tornado
+     * particles appear to jump at a regular two-second cadence. The queue is
+     * still retained so duplicate block positions are coalesced before the
+     * next processing pass.
+     */
+    private int queueProcessRate = 1;
 
     //for client player, for use of playing sounds
 	public static boolean isOutsideCached = false;
