@@ -48,6 +48,16 @@ public class TornadoFunnelSimple {
     private double ropeDirectionX = 1D;
     private double ropeDirectionZ = 0D;
 
+    /**
+     * Previous tornado ground/base position used to propagate the parent
+     * storm's horizontal movement through the entire funnel immediately.
+     *
+     * Without this, only layer 0 follows the new base position directly and
+     * every higher layer has to chase the layer below it. A tall, dynamically
+     * extended funnel can therefore lag behind the moving wall cloud.
+     */
+    private Vec3 previousFunnelBasePos = null;
+
     public TornadoFunnelSimple(ActiveTornadoConfig config, StormObject stormObject) {
         this.config = config;
         this.stormObject = stormObject;
@@ -56,6 +66,7 @@ public class TornadoFunnelSimple {
 
     public void init() {
         listLayers.clear();
+        previousFunnelBasePos = null;
     }
 
     /**
@@ -68,6 +79,40 @@ public class TornadoFunnelSimple {
      * the minimum and extend the funnel only when the cloud-to-ground distance
      * requires it.
      */
+    /**
+     * Apply the storm/base X/Z displacement to every existing funnel layer
+     * before the normal per-layer follow simulation runs.
+     *
+     * This keeps the tornado horizontally anchored beneath the moving storm
+     * and wall cloud while preserving Weather2's existing vertical follow
+     * behavior, terrain response, morphology bends, and dynamic height.
+     */
+    private void propagateHorizontalStormMovement() {
+        if (previousFunnelBasePos == null) {
+            previousFunnelBasePos = new Vec3(pos.x, pos.y, pos.z);
+            return;
+        }
+
+        double deltaX = pos.x - previousFunnelBasePos.x;
+        double deltaZ = pos.z - previousFunnelBasePos.z;
+
+        if ((deltaX != 0D || deltaZ != 0D) && !listLayers.isEmpty()) {
+            for (Layer layer : listLayers) {
+                Vec3 layerPos = layer.getPos();
+                layer.setPos(new Vec3(
+                        layerPos.x + deltaX,
+                        layerPos.y,
+                        layerPos.z + deltaZ
+                ));
+            }
+        }
+
+        // Intentionally track Y without translating existing layers vertically.
+        // Terrain-height changes remain handled by the original layer-follow
+        // simulation and the dynamic funnel-height logic.
+        previousFunnelBasePos = new Vec3(pos.x, pos.y, pos.z);
+    }
+
     private void updateDynamicFunnelHeight() {
         if (stormObject.isPet() || stormObject.isBaby()) {
             return;
@@ -85,6 +130,7 @@ public class TornadoFunnelSimple {
             heightPerLayer = 0.2F;
         }
 
+        propagateHorizontalStormMovement();
         updateDynamicFunnelHeight();
 
         //TESTING
@@ -630,6 +676,7 @@ public class TornadoFunnelSimple {
 
     public void cleanup() {
         listLayers.clear();
+        previousFunnelBasePos = null;
     }
 
     /**
