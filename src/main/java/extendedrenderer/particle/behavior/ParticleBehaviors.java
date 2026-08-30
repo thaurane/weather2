@@ -25,7 +25,6 @@ import weather2.ClientTickHandler;
 import weather2.ClientWeatherProxy;
 import weather2.client.SceneEnhancer;
 import weather2.datatypes.PrecipitationType;
-import weather2.config.ConfigStorm;
 import weather2.util.WeatherUtilParticle;
 
 @OnlyIn(Dist.CLIENT)
@@ -206,9 +205,6 @@ public class ParticleBehaviors {
 	}
 
 	public void initParticleRain(EntityRotFX particle, int extraRenderCount) {
-		// Keep custom rain visible out to the configured Storm.toml radius.
-		int rainRenderChunks = Mth.clamp(ConfigStorm.Storm_Rain_RenderDistance_Chunks, 2, 16);
-		particle.renderRange = Math.max(128F, (rainRenderChunks * 16F) + 16F);
 		particle.setKillWhenUnderTopmostBlock(true);
 		particle.setCanCollide(false);
 		particle.killWhenUnderCameraAtLeast = 5;

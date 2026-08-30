@@ -12,7 +12,6 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.MapColor;
 import weather2.config.ConfigMisc;
 import weather2.config.ConfigSound;
-import weather2.config.ConfigStorm;
 import weather2.datatypes.PrecipitationType;
 import weather2.datatypes.WeatherEventType;
 import extendedrenderer.particle.ParticleRegistry;
@@ -106,13 +105,6 @@ public class SceneEnhancer implements Runnable {
 
 	public static float downfallSheetThreshold = 0.32F;
 
-	private static int getRainRenderDistanceChunks() {
-		return Mth.clamp(ConfigStorm.Storm_Rain_RenderDistance_Chunks, 2, 16);
-	}
-
-	private static int getRainRenderRadiusBlocks() {
-		return getRainRenderDistanceChunks() * 16;
-	}
 
 	public SceneEnhancer() {
 		listPosRandom.clear();
@@ -684,48 +676,6 @@ public class SceneEnhancer implements Runnable {
 								if (spawnCount >= spawnNeed) {
 									break;
 								}
-							}
-						}
-					}
-
-					/*
-					 * Distant visual rain pass.
-					 *
-					 * Keep the original dense ~15 block rain field untouched so nearby rain
-					 * does not become sparse. This second, intentionally lighter pass fills
-					 * the area between the near field and the configured render radius.
-					 * Ground splashes stay local to avoid a large performance increase.
-					 */
-					if (isRain_WaterParticle && spawnNeedBase > 0) {
-						int rainRenderRadiusBlocks = getRainRenderRadiusBlocks();
-						int nearRainRadiusBlocks = spawnAreaSize / 2;
-						int extraChunks = Math.max(0, getRainRenderDistanceChunks() - 2);
-						int distantSpawnNeed = (int)Math.ceil(spawnNeedBase * extraChunks * 3D);
-						int distantSpawnCount = 0;
-
-						for (int i = 0; i < safetyCutout && distantSpawnCount < distantSpawnNeed; i++) {
-							int offsetX = rand.nextInt((rainRenderRadiusBlocks * 2) + 1) - rainRenderRadiusBlocks;
-							int offsetZ = rand.nextInt((rainRenderRadiusBlocks * 2) + 1) - rainRenderRadiusBlocks;
-							int distanceSq = (offsetX * offsetX) + (offsetZ * offsetZ);
-
-							if (distanceSq > rainRenderRadiusBlocks * rainRenderRadiusBlocks ||
-									distanceSq <= nearRainRadiusBlocks * nearRainRadiusBlocks) {
-								continue;
-							}
-
-							BlockPos pos = CoroUtilBlock.blockPos(
-									entP.getX() + offsetX,
-									entP.getY() - 5 + rand.nextInt(25),
-									entP.getZ() + offsetZ);
-
-							if (canPrecipitateAt(world, pos)) {
-								ParticleTexExtraRender rain = new ParticleTexExtraRender((ClientLevel) entP.level(),
-										pos.getX(),
-										pos.getY(),
-										pos.getZ(),
-										0D, 0D, 0D, ParticleRegistry.rain_white);
-								particleBehavior.initParticleRain(rain, extraRenderCount);
-								distantSpawnCount++;
 							}
 						}
 					}

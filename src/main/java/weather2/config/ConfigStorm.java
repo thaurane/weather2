@@ -17,8 +17,6 @@ public class ConfigStorm implements IConfigCategory {
 	public static int Storm_Deadly_CollideDistance = 128;
 	public static int Storm_LightningStrikeBaseValueOddsTo1 = 200;
 	public static boolean Storm_NoRainVisual = false;
-	@ConfigComment("Visual rain render radius in chunks. 8-12 is recommended. Values are clamped to 2-16 by the client renderer.")
-	public static int Storm_Rain_RenderDistance_Chunks = 8;
 	public static int Storm_MaxRadius = 500;
 	public static int Storm_AllTypes_TickRateDelay = 60;
 	public static int Storm_Rain_WaterBuildUpRate = 10;
