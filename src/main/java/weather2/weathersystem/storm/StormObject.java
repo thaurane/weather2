@@ -228,6 +228,8 @@ public class StormObject extends WeatherObject {
 
 	private boolean configNeedsSync = true;
 
+	private static final int LAYER_0_MAX_LIFETIME_TICKS = 20 * 60 * 15; // 15 real-time minutes
+
 	private int age;
 	private int ageSinceTornadoTouchdown;
 
@@ -769,6 +771,16 @@ public class StormObject extends WeatherObject {
 	public void tick() {
 		super.tick();
 		age++;
+
+		// Weather2 Morphologies: prevent severe-weather storms on layer 0 from
+		// surviving indefinitely after they have moved away from the player.
+		// Removal is server-side only so the existing manager sync path handles
+		// client cleanup consistently. Layer 1+ passive rain clouds are unaffected.
+		if (!manager.getWorld().isClientSide() && layer == 0 && age >= LAYER_0_MAX_LIFETIME_TICKS) {
+			remove();
+			return;
+		}
+
 		if (levelCurIntensityStage >= STATE_STAGE1) ageSinceTornadoTouchdown++;
 		//Weather.dbg("ticking storm " + ID + " - manager: " + manager);
 
