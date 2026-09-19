@@ -228,7 +228,7 @@ public class StormObject extends WeatherObject {
 
 	private boolean configNeedsSync = true;
 
-	private static final int LAYER_0_MAX_LIFETIME_TICKS = 20 * 60 * 15; // 15 real-time minutes
+	private static final int LAYER_0_MAX_LIFETIME_TICKS = 20 * 60 * 20; // 20 real-time minutes
 
 	private int age;
 	private int ageSinceTornadoTouchdown;

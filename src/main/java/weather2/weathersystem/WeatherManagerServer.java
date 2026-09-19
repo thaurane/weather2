@@ -641,27 +641,9 @@ public class WeatherManagerServer extends WeatherManager {
 			}
 			addStormObject(so);
 
-			if (layer == 1) {
-				Weather.LOGGER.info(
-						"[Weather2 Layer1 TEST] SERVER spawned layer-1 cloud ID={} at x={}, y={}, z={}, cloudless={}",
-						so.ID,
-						so.pos.x,
-						so.pos.y,
-						so.pos.z,
-						so.isCloudlessStorm()
-				);
-			}
 
 			syncStormNew(so);
 		} else {
-			if (layer == 1) {
-				Weather.LOGGER.info(
-						"[Weather2 Layer1 TEST] SERVER layer-1 spawn blocked by spacing at x={}, y={}, z={}",
-						tryPos.x,
-						tryPos.y,
-						tryPos.z
-				);
-			}
 		}
 	}
 
